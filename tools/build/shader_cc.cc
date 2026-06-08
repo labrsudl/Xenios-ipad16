@@ -83,6 +83,18 @@ constexpr const char* kXeslWrapperPrefix =
     "#extension GL_EXT_samplerless_texture_functions : require\n"
     "#extension GL_GOOGLE_include_directive : require\n";
 
+template <typename T>
+auto PushExternalIncludeDirectory(T& includer, const std::string& dir, int)
+    -> decltype(includer.pushExternalLocalDirectory(dir), void()) {
+  includer.pushExternalLocalDirectory(dir);
+}
+
+template <typename T>
+auto PushExternalIncludeDirectory(T& includer, const std::string& dir, long)
+    -> decltype(includer.pushExternalDirectory(dir), void()) {
+  includer.pushExternalDirectory(dir);
+}
+
 bool ParseStage(const std::string& filename, EShLanguage* out,
                 std::string* stage_key_out) {
   // Strip extension, then take last 2 chars after the final dot.
@@ -838,7 +850,7 @@ int main(int argc, char** argv) {
   DirStackFileIncluder includer;
   std::string input_dir = input_path.parent_path().string();
   if (!input_dir.empty()) {
-    includer.pushExternalLocalDirectory(input_dir);
+    PushExternalIncludeDirectory(includer, input_dir, 0);
   }
 
   const int default_version = 460;
