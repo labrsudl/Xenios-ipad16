@@ -30,7 +30,7 @@ Options:
                        random com.xenios.<id> otherwise)
   --random-ios-bundle-id
                        Force a random iOS bundle identifier for this package
-  --ios-min VERSION    iOS minimum version (default: 18.0)
+  --ios-min VERSION    iOS minimum version (default: 16.0)
   --macos-min VERSION  macOS minimum version (default: 15.0)
   --mac-sign IDENTITY  macOS codesign identity (default: ad-hoc '-')
   --attestation-key-id ID
@@ -804,7 +804,7 @@ release_stage="${XENIOS_BUILD_STAGE:-}"
 issued_at_override="${XENIOS_BUILD_ISSUED_AT:-}"
 stamp_bundle=""
 stamp_platform=""
-ios_min="18.0"
+ios_min="16.0"
 macos_min="15.0"
 mac_sign_identity="-"
 attestation_key="${XENIOS_BUILD_ATTESTATION_KEY:-}"

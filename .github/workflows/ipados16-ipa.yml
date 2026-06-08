@@ -1,0 +1,141 @@
+name: iPadOS 16 IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ipados16-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ipados16-ipa:
+    name: Build iPadOS 16 IPA
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show Apple toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -d /Applications/Xcode_26.3.app ]; then
+            sudo xcode-select -s /Applications/Xcode_26.3.app
+          fi
+
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          retry() {
+            local attempts=0
+            until "$@"; do
+              attempts=$((attempts + 1))
+              if [ "$attempts" -ge 5 ]; then
+                return 1
+              fi
+              sleep $((attempts * 10))
+            done
+          }
+
+          brew list ninja >/dev/null 2>&1 || brew install ninja
+
+          retry git submodule update --init --depth=1 --recursive -j"$(sysctl -n hw.ncpu)"
+          retry git -C third_party/DirectXShaderCompiler submodule update --init --depth=1 \
+            external/SPIRV-Headers external/SPIRV-Tools
+
+          ./xenia-build.py fetchdata
+
+      - name: Install Metal toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3 4 5; do
+            if sudo xcodebuild -downloadComponent MetalToolchain; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 5 ]; then
+              sleep $((attempt * 30))
+            fi
+          done
+
+          echo "::error::MetalToolchain download failed after 5 attempts"
+          exit 1
+
+      - name: Build host shader compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ./xenia-build.py build --config=release --target=xenia-shader-cc
+          test -x build/host_tools/Release/xenia-shader-cc
+
+      - name: Build IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ./xenia-build.py build \
+            --config=release \
+            --target-os=ios \
+            --target=xenia-app-ios-package \
+            -- -quiet
+
+      - name: Verify and stage IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ipa="build-ios-xcode/bin/iOS/Release/XeniOS.ipa"
+          test -f "$ipa"
+
+          check_dir="scratch/ipados16-ipa-check"
+          rm -rf "$check_dir"
+          mkdir -p "$check_dir" artifacts/ipados16
+          unzip -q "$ipa" -d "$check_dir"
+
+          app="$check_dir/Payload/XeniOS.app"
+          plist="$app/Info.plist"
+          exe="$app/XeniOS"
+          test -f "$plist"
+          test -f "$exe"
+
+          min_version="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$plist")"
+          if [ "$min_version" != "16.0" ]; then
+            echo "::error::Expected iOS minimum 16.0, got ${min_version}"
+            exit 1
+          fi
+
+          ipad_family="$(/usr/libexec/PlistBuddy -c 'Print :UIDeviceFamily:1' "$plist")"
+          if [ "$ipad_family" != "2" ]; then
+            echo "::error::IPA does not advertise iPad support"
+            exit 1
+          fi
+
+          lipo -verify_arch arm64 "$exe"
+          file "$exe"
+
+          cp "$ipa" artifacts/ipados16/XeniOS-ipados16.ipa
+          cp build-ios-xcode/bin/iOS/Release/XeniOS.requested-entitlements.plist artifacts/ipados16/ || true
+          cp build-ios-xcode/bin/iOS/Release/XeniOS.signed-entitlements.plist artifacts/ipados16/ || true
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xenios-ipados16-ipa
+          path: artifacts/ipados16
+          if-no-files-found: error
+          overwrite: true

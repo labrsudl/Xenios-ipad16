@@ -17,7 +17,7 @@ endif()
 # Must be set before project() so the toolchain bakes the deployment target into
 # every compile/link; setting it later only updates the variable.
 if(XE_PLATFORM_IOS)
-  set(CMAKE_OSX_DEPLOYMENT_TARGET "18.0" CACHE STRING "Minimum iOS version")
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "16.0" CACHE STRING "Minimum iOS version")
 elseif(XE_PLATFORM_MACOS)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0" CACHE STRING "Minimum macOS version")
 endif()

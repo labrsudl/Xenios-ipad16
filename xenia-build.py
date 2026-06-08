@@ -663,6 +663,7 @@ def run_cmake_configure(cc=None, generator=None, build_tests=False,
             "-DCMAKE_SYSTEM_PROCESSOR=arm64",
             "-DCMAKE_OSX_SYSROOT=iphoneos",
             "-DCMAKE_OSX_ARCHITECTURES=arm64",
+            "-DCMAKE_OSX_DEPLOYMENT_TARGET=16.0",
             "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY",
             "-DXENIA_ENABLE_IOS_MOLTENVK=ON",
         ]
