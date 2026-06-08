@@ -52,7 +52,33 @@ jobs:
 
           brew list ninja >/dev/null 2>&1 || brew install ninja
 
-          retry git submodule update --init --depth=1 --recursive -j"$(sysctl -n hw.ncpu)"
+          while read -r key path; do
+            name="${key#submodule.}"
+            name="${name%.path}"
+            url="$(git config --file .gitmodules --get "submodule.${name}.url")"
+            branch="$(git config --file .gitmodules --get "submodule.${name}.branch" || true)"
+            tracked_count="$(git ls-files -- "$path" | wc -l | tr -d ' ')"
+
+            if [ "$tracked_count" != "0" ]; then
+              echo "Using tracked dependency: $path"
+              continue
+            fi
+            if [ -d "$path/.git" ]; then
+              echo "Using existing dependency checkout: $path"
+              continue
+            fi
+
+            echo "Cloning $path"
+            rm -rf "$path"
+            mkdir -p "$(dirname "$path")"
+            clone_args=(--depth=1)
+            if [ -n "$branch" ]; then
+              clone_args+=(--branch "$branch")
+            fi
+            retry git clone "${clone_args[@]}" "$url" "$path"
+          done < <(git config --file .gitmodules --get-regexp '^submodule\..*\.path$')
+
+          retry git -C third_party/wxWidgets submodule update --init --recursive --depth=1
           retry git -C third_party/DirectXShaderCompiler submodule update --init --depth=1 \
             external/SPIRV-Headers external/SPIRV-Tools
 
