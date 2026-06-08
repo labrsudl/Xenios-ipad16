@@ -36,6 +36,23 @@ class SpirvBuilder : public spv::Builder {
   // Make public rather than protected.
   using spv::Builder::createSelectionMerge;
 
+  spv::Id makeImageType(spv::Id sampled_type, spv::Dim dim, bool depth,
+                        bool arrayed, bool ms, unsigned sampled,
+                        spv::ImageFormat format) {
+    return MakeImageTypeCompat(static_cast<spv::Builder&>(*this), sampled_type,
+                               dim, depth, arrayed, ms, sampled, format, "",
+                               0);
+  }
+
+  spv::Id makeSamplerType() {
+    return MakeSamplerTypeCompat(static_cast<spv::Builder&>(*this), "", 0);
+  }
+
+  spv::Id makeSampledImageType(spv::Id image_type) {
+    return MakeSampledImageTypeCompat(static_cast<spv::Builder&>(*this),
+                                      image_type, "", 0);
+  }
+
   // Backward compatibility wrapper for createBranch
   void createBranch(spv::Block* block) {
     spv::Builder::createBranch(true, block);
@@ -194,6 +211,58 @@ class SpirvBuilder : public spv::Builder {
   };
 
  private:
+  template <typename Builder>
+  static auto MakeImageTypeCompat(Builder& builder, spv::Id sampled_type,
+                                  spv::Dim dim, bool depth, bool arrayed,
+                                  bool ms, unsigned sampled,
+                                  spv::ImageFormat format,
+                                  const char* debug_name, int)
+      -> decltype(builder.makeImageType(sampled_type, dim, depth, arrayed, ms,
+                                        sampled, format, debug_name)) {
+    return builder.makeImageType(sampled_type, dim, depth, arrayed, ms, sampled,
+                                 format, debug_name);
+  }
+
+  template <typename Builder>
+  static auto MakeImageTypeCompat(Builder& builder, spv::Id sampled_type,
+                                  spv::Dim dim, bool depth, bool arrayed,
+                                  bool ms, unsigned sampled,
+                                  spv::ImageFormat format,
+                                  const char* /*debug_name*/, long)
+      -> decltype(builder.makeImageType(sampled_type, dim, depth, arrayed, ms,
+                                        sampled, format)) {
+    return builder.makeImageType(sampled_type, dim, depth, arrayed, ms, sampled,
+                                 format);
+  }
+
+  template <typename Builder>
+  static auto MakeSamplerTypeCompat(Builder& builder, const char* debug_name,
+                                    int)
+      -> decltype(builder.makeSamplerType(debug_name)) {
+    return builder.makeSamplerType(debug_name);
+  }
+
+  template <typename Builder>
+  static auto MakeSamplerTypeCompat(Builder& builder,
+                                    const char* /*debug_name*/, long)
+      -> decltype(builder.makeSamplerType()) {
+    return builder.makeSamplerType();
+  }
+
+  template <typename Builder>
+  static auto MakeSampledImageTypeCompat(Builder& builder, spv::Id image_type,
+                                         const char* debug_name, int)
+      -> decltype(builder.makeSampledImageType(image_type, debug_name)) {
+    return builder.makeSampledImageType(image_type, debug_name);
+  }
+
+  template <typename Builder>
+  static auto MakeSampledImageTypeCompat(Builder& builder, spv::Id image_type,
+                                         const char* /*debug_name*/, long)
+      -> decltype(builder.makeSampledImageType(image_type)) {
+    return builder.makeSampledImageType(image_type);
+  }
+
   bool allow_contraction_ = false;
 };
 
