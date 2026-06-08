@@ -53,6 +53,12 @@ class SpirvBuilder : public spv::Builder {
                                       image_type, "", 0);
   }
 
+  spv::Id makeStructType(const std::vector<spv::Id>& members,
+                         const char* name) {
+    return MakeStructTypeCompat(static_cast<spv::Builder&>(*this), members,
+                                name, true, 0);
+  }
+
   // Backward compatibility wrapper for createBranch
   void createBranch(spv::Block* block) {
     spv::Builder::createBranch(true, block);
@@ -261,6 +267,25 @@ class SpirvBuilder : public spv::Builder {
                                          const char* /*debug_name*/, long)
       -> decltype(builder.makeSampledImageType(image_type)) {
     return builder.makeSampledImageType(image_type);
+  }
+
+  template <typename Builder>
+  static auto MakeStructTypeCompat(Builder& builder,
+                                   const std::vector<spv::Id>& members,
+                                   const char* name, bool compiler_generated,
+                                   int)
+      -> decltype(builder.makeStructType(members, {}, name,
+                                         compiler_generated)) {
+    return builder.makeStructType(members, {}, name, compiler_generated);
+  }
+
+  template <typename Builder>
+  static auto MakeStructTypeCompat(Builder& builder,
+                                   const std::vector<spv::Id>& members,
+                                   const char* name,
+                                   bool /*compiler_generated*/, long)
+      -> decltype(builder.makeStructType(members, name)) {
+    return builder.makeStructType(members, name);
   }
 
   bool allow_contraction_ = false;
